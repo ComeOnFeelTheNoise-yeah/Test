@@ -1,16 +1,12 @@
 import * as React from 'react';
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import {BrowserRouter, Link, Route, Routes} from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { CSSTransition, TransitionGroup } from 'react-transition-group';
 
-import Member from '../AdminPage/Member'
 import AdminPage from '../AdminPage';
-import Fullfillment from '../AdminPage/Fullfillment';
-
 import './Search.css';
 import AuthForm from "../AuthForm";
 
@@ -45,46 +41,13 @@ import BoardDetail from '../Board/board/BoardDetail';
 import BoardEdit from '../Board/board/BoardEdit';
 import BoardList from '../Board/board/BoardList';
 
+import CalendarPage from '../Calendar';
+
 import Test from '../Test';
-import Search from '../Search';
+import Chat from '../Chat';
+import { ChatProvider } from '../ChatContext';
+import Politician from '../Politician';
 
-
-// 공통 헤더 렌더링 함수
-const renderCommonHeader = (currentDateTime) => (
-    <div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '55px', marginBottom: '10px' }}>
-            <Link to="/Main">
-                <img alt="sayoLogo" src="/img/sayoLogo.png" height={80} />
-            </Link>
-        </div>
-        <div style={{ marginTop: '-75px', marginRight: '-200px' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-start', fontSize: '20px' }}>
-                <Link to="/AdminPage" style={{ textDecoration: 'none', marginTop: '-25px', marginLeft: '-200px', padding: '35px', color: '#444444', fontWeight: 'bolder' }}>
-                    관리자 모드
-                </Link>
-            </div>
-            <div style={{ marginTop: '-65px', fontSize: '20px', marginLeft: '380px' }}>
-                <Link to="/OrganizationChart" style={{ textDecoration: 'none', marginRight: '150px', marginLeft: '-200px', color: '#444444', fontWeight: 'bolder' }}>
-                    조직도
-                </Link>
-                <Link to="/Board" style={{ textDecoration: 'none', color: '#444444', fontWeight: 'bolder' }}>게시판</Link>
-                <Link to="/Community" style={{ textDecoration: 'none', marginLeft: '250px', marginRight: '-150px', color: '#444444', fontWeight: 'bolder' }}>커뮤니티</Link>
-                <Link to="/AboutUs" style={{ textDecoration: 'none', marginLeft: '250px', color: '#444444', fontWeight: 'bolder' }}>AboutUs</Link>
-                <span className='admin-clock' style={{ marginLeft: '100px' }}>{currentDateTime.toLocaleDateString()} {currentDateTime.toLocaleTimeString()}</span>
-            </div>
-        </div>
-    </div>
-);
-
-// 페이지 설정 객체 배열
-const pageConfigs = [
-    { path: '/AdminPage', element: <AdminPage /> },
-    { path: '/Fullfillment', element: <Fullfillment /> },
-    { path: '/Member', element: <Member /> },
-];
-
-
-const localizer = momentLocalizer(moment);
 
 export default function Navigation() {
 
@@ -92,42 +55,44 @@ export default function Navigation() {
     const [searches, setSearches] = useState({});
     const [searchText, setSearchText] = useState('');
     const [popularKeywords, setPopularKeywords] = useState([]);
-    // 캘린더
-    const [events, setEvents] = useState([]);
     // 인기 검색어 하나씩
     const [currentKeywordIndex, setCurrentKeywordIndex] = useState(0);
     // 인기 검색어 전체
     const [isHovered, setIsHovered] = useState(false);
+    //캘린더
+    const [eventTitle, setEventTitle] = useState('');
+    const [events, setEvents] = useState([]);
 
     useEffect(() => {
-        // Replace the URL with your actual API URL
         axios.get('https://port-0-spring-boot-sayyo-server-147bpb2mlmecwrp7.sel5.cloudtype.app/api/events')
-            .then((response) => {
-                if (Array.isArray(response.data)) {
-                    const events = response.data
-                        .filter(e => e != null)
-                        .map((e) => ({
-                            ...e,
-                            start: new Date(e.start),
-                            end: new Date(e.end),
-                            allDay: true, // 'allDay' 속성을 추가하세요.
-                        }));
+        .then((response) => {
+            if (Array.isArray(response.data)) { 
+                const events = response.data
+                    .filter(e => e != null)
+                    .map((e) => ({
+                    ...e,
+                    start: new Date(e.start),
+                    end: new Date(e.end),
+                    }));
+        
+                setEvents(events);
 
-                    setEvents(events);
+                const todayEvents = events.filter(e => 
+                    moment(e.start).isSame(moment(), 'day')
+                ); 
+        
+                if (todayEvents.length > 0) {
+                    const titles = todayEvents.map(event => event.title).join(', ');
+                    setEventTitle(`오늘의 일정: ${titles}`);
+                } else {
+                    setEventTitle('오늘의 일정이 없습니다.');
                 }
-            });
+            }
+        });
     }, []);
-
-    function CustomToolbar({ label, onNavigate }) {
-        return (
-            <div>
-                <button onClick={() => onNavigate('PREV')}>◀</button>
-                <span>{label}</span>
-                <button onClick={() => onNavigate('NEXT')}>▶</button>
-            </div>
-        );
-    }
-
+    
+    
+    
     //인기검색어 get
     useEffect(() => {
         axios.get('https://port-0-spring-boot-sayyo-server-147bpb2mlmecwrp7.sel5.cloudtype.app/search/popular') // 실시간 인기 검색어를 가져오는 API endpoint
@@ -147,7 +112,7 @@ export default function Navigation() {
         }, 4000);
         return () => clearInterval(interval);
     }, [currentKeywordIndex]);
-
+    
 
     const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
@@ -181,12 +146,6 @@ export default function Navigation() {
         setSearchText('');
     };
 
-    const getPopularSearches = () => {
-        return Object.entries(searches)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([keyword]) => keyword);
-    };
 
     const isAuth = window.location.pathname === '/';
     // If it's the home page, return null to render nothing
@@ -200,23 +159,44 @@ export default function Navigation() {
         );
     }
 
-    // 현재 페이지에 대한 설정 찾기
-    const currentPageConfig = pageConfigs.find(config => window.location.pathname === config.path);
-
-    // 만약 설정이 존재한다면 해당 페이지 렌더링
-    if (currentPageConfig) {
+    const isAdminPage = window.location.pathname === '/AdminPage';
+    // If it's the home page, return null to render nothing
+    if (isAdminPage) {
         return (
             <BrowserRouter>
                 <div style={{ marginTop: '-30px', marginBottom: '-30px' }}>
-                    {renderCommonHeader(currentDateTime)}
-                    <Routes>
-                        <Route {...currentPageConfig} />
-                    </Routes>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '55px', marginBottom: '10px' }}>
+                        <Link to="/Main">
+                            <img
+                                alt="sayoLogo"
+                                src="/img/sayoLogo.png"
+                                height={80}
+                            />
+                        </Link>
+                    </div>
+                    <div style={{ marginTop: '-75px', marginRight: '-200px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', fontSize: '20px' }}>
+                            <Link to="/AdminPage" style={{ textDecoration: 'none', marginTop: '-25px', marginLeft: '-200px', padding: '35px', color: '#444444', fontWeight: 'bolder' }}>
+                                관리자 모드
+                            </Link>
+                        </div>
+                        <div style={{ marginTop: '-65px', fontSize: '20px', marginLeft: '380px' }}>
+                            <Link to="/OrganizationChart" style={{ textDecoration: 'none', marginRight: '150px', marginLeft: '-200px', color: '#444444', fontWeight: 'bolder' }}>
+                                조직도
+                            </Link>
+                            <Link to="/Board" style={{ textDecoration: 'none', color: '#444444', fontWeight: 'bolder' }}>게시판</Link>
+                            <Link to="/Community" style={{ textDecoration: 'none', marginLeft: '250px', marginRight: '-150px', color: '#444444', fontWeight: 'bolder' }}>커뮤니티</Link>
+                            <Link to="/AboutUs" style={{ textDecoration: 'none', marginLeft: '250px', color: '#444444', fontWeight: 'bolder' }}>AboutUs</Link>
+                            <span className='admin-clock' style={{ marginLeft: '100px' }}>{currentDateTime.toLocaleDateString()} {currentDateTime.toLocaleTimeString()}</span>
+                        </div>
+                    </div>
                 </div>
+                <Routes>
+                    <Route path="/AdminPage" element={<AdminPage />} />
+                </Routes>
             </BrowserRouter>
         );
     }
-
 
     return (
         <div>
@@ -254,7 +234,7 @@ export default function Navigation() {
                             인기 검색어:
                             <div style={{ height: '25px', overflow: 'hidden' }}>
                                 <TransitionGroup>
-                                    {!isHovered &&
+                                    {!isHovered && 
                                         <CSSTransition
                                             key={currentKeywordIndex}
                                             timeout={1000}
@@ -271,30 +251,17 @@ export default function Navigation() {
                                     <li key={index}>{index + 1}. {keyword}</li>
                                 ))}
                             </ul>}
-                        </div>
+                        </div>      
                     </div>
                 </div>
-                <div>
-                    <Calendar
-                        style={{ height: 100, width: 350 }}
-                        localizer={localizer}
-                        events={events}
-                        startAccessor="start"
-                        endAccessor="end"
-                        defaultView='day'
-                        timeslots={1}
-                        min={new Date(2023, 10, 10, 0, 0)} // 0시
-                        max={new Date(2023, 10, 10, 0, 1)} // 0시 1분
-                        date={new Date()}
-                        components={{
-                            toolbar: () => null, // 툴바를 비활성화 합니다.
-                        }}
-                    />
-                </div>
+                <Link to="/Calendar" style={{ position: 'absolute', left: 0 }}>
+                    <div>{eventTitle}</div>
+                </Link>
+                <ChatProvider>
                 <Routes>
 
                     <Route path='/MyPage' element={<MyPage />} />
-
+                    <Route path="/Calendar" element={<CalendarPage />} />
                     <Route path="/Main" element={<Main />} />
                     <Route path="/OrganizationChart" element={<OrganizationChart />} />
                     <Route path="/Board" element={<Board />} />
@@ -325,9 +292,11 @@ export default function Navigation() {
                     <Route path='/BoardEdit/:num' element={<BoardEdit />} />
 
                     <Route path="/Test" element={<Test />} />
-                    <Route path="/Search" element={<Search />} />
+                    <Route path="/Chat" element={<Chat />} />
+                    <Route path="/Politician" element={<Politician/>}/>
 
                 </Routes>
+                </ChatProvider>
             </BrowserRouter>
         </div>
     );
